@@ -48,11 +48,20 @@ def create_execl(play_id, worksheet, session, starkey1):
         lists[0].append(int(zf1) + int(zf2))
         #队伍
         lists[0].insert(1, lists[1][0])
-        # 单双
+        #A1 A2 B1 B2
         lists[0][2] = A1B1(int(lists[0][2]), int(lists[1][1]))
         lists[0][3] = A1B1(int(lists[0][3]), int(lists[1][2]))
         lists[0][4] = A1B1(int(lists[0][4]), int(lists[1][3]))
         lists[0][5] = A1B1(int(lists[0][5]), int(lists[1][4]))
+        #单双
+        lists[0][6] = jioshu(int(lists[0][6]))
+        lists[0][7] = jioshu(int(lists[0][7]))
+        lists[0][8] = jioshu(int(lists[0][8]))
+        lists[0][9] = jioshu(int(lists[0][9]))
+        lists[0][10] = jioshu(int(lists[0][10]))
+        lists[0][11] = jioshu(int(lists[0][11]))
+
+
         starkey1 = starkey1 + 1
         worksheet.write(starkey1, 0, 'NBA')
         worksheet.write(starkey1, 1, datatime)
@@ -79,18 +88,18 @@ def jioshu(num):
     else:
         return 1
 
-def regular_season(requests_date):
+def regular_season(team, teamNmae, requests_date):
     with requests_html.HTMLSession() as session:
         session.headers = headers
         session.mount('http://', HTTPAdapter(max_retries=5))
         session.mount('https://', HTTPAdapter(max_retries=5))
         # 抓取的常规赛年月
-        url_format = 'http://nba.win0168.com/jsData/matchResult/%s/l1_1_20%s_10.js?version=2018112112' % (
-            requests_date, requests_date[:2])
+        url_format = 'http://nba.win0168.com/jsData/matchResult/%s/l%s_1_20%s_10.js?version=2018112112' % (
+            requests_date, team, requests_date[:2])
         r = session.get(url_format, timeout=6)
         # 年月数据格式化
         year_month = map(lambda x: x.split(','), r.html.search('ymList = [[{}]];')[0].split('],['))
-        workbook = xw.Workbook('NBA.xlsx')
+        workbook = xw.Workbook(teamNmae+'.xlsx')
         worksheet = workbook.add_worksheet()
         worksheet.set_column('A:A', 15)
         worksheet.set_column('H:H', 15)
@@ -116,8 +125,8 @@ def regular_season(requests_date):
             # if ym == ['2018', '12']:
             #     return 0
             # 新建excel format: year - month.xlsx
-            url = 'http://nba.win0168.com/jsData/matchResult/%s/l1_1_%s_%s.js?version=2018112112' % (
-                requests_date, ym[0], ym[1])
+            url = 'http://nba.win0168.com/jsData/matchResult/%s/l%s_1_%s_%s.js?version=2018112112' % (
+                requests_date, team, ym[0], ym[1])
             r = session.get(url, timeout=6)
             # 该年月的比赛id
             play_id = map(lambda x: x.split(',')[0], r.html.search('arrData = [[{}]];')[0].split('],['))
@@ -129,8 +138,16 @@ def regular_season(requests_date):
             starkey1 = create_execl(play_id, worksheet, session, starkey1)
             # 关闭保存
             print('完成', ym[0], ym[1])
+        #季后赛
+        # 抓取季度数据
+        r = session.get('http://nba.win0168.com/jsData/matchResult/%s/l%s_2.js?version=2018112122' % requests_date, team, timeout=6)
+        # 季度数据格式化
+        quarter = list(map(lambda x: x.split(',')[0],re.split(",\[\[|[0-9]\],\[", r.html.search(",[[{}var")[0])))
+        # 该年月的比赛id
+        play_id = quarter
+        create_execl(play_id, workbook, session, starkey1)
         workbook.close()
-
+        print('完成季后赛', requests_date)
 
 def playoffs(requests_date):
     with requests_html.HTMLSession() as session:
@@ -154,10 +171,15 @@ def playoffs(requests_date):
 
 
 if __name__ == '__main__':
-    dict_date = ['16-17', '17-18']
-    for date in dict_date:
-        regular_season(date)
-    dict_date = ['16-17', '17-18', '18-19']
+    dict_timedate={1:'NBA', 2:'WNBA',20:'西班牙蓝甲',16:'意大利蓝甲', 17:'希腊篮甲',
+                   23:'俄罗斯篮超', 25:'土耳其篮超', 29:'波兰篮甲', 142:'立陶宛篮甲', 147:'爱沙尼亚超级篮球联赛', 231:'拉脱维亚篮球甲级联赛'
+                   , 19:'法国男子篮球甲级联赛', 302:'阿根廷篮联', 14:'NBL(A)', 131:'澳大利亚女子篮球', 148:'东南澳联', 196:'东南澳女联',
+                   353:'日篮联', 81:'日联', 15:'韩篮甲', 106:'韩女甲', 5:'CBA', 36:'WCBA', }
+    dict_date = ['15-16']
+    for tm in dict_timedate:
+        for date in dict_date:
+            regular_season(tm, dict_timedate[tm], date)
+    #dict_date = ['16-17', '17-18', '18-19']
     # for date in dict_date:
     #     pass
     # playoffs(date)
